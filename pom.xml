@@ -18,22 +18,6 @@
     <packaging>jar</packaging>
 
     <name>Spring Boot App Logger</name>
-    <description>Application logger with structured logging and exception integration for Spring Boot</description>
-    <url>https://github.com/yourusername/spring-boot-app-logger</url>
-
-    <licenses>
-        <license>
-            <name>MIT License</name>
-            <url>https://opensource.org/licenses/MIT</url>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <name>Your Name</name>
-            <email>your.email@example.com</email>
-        </developer>
-    </developers>
 
     <properties>
         <java.version>17</java.version>
