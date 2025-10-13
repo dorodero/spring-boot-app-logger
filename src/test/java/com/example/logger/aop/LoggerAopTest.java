@@ -1,5 +1,6 @@
 package com.example.logger.aop;
 
+import com.example.logger.AppLogger;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.exception.AppException;
 import com.example.logger.exception.AppMsg;
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +20,9 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.web.bind.annotation.PathVariable;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,9 +61,12 @@ class LoggerAopTest {
     void shouldInterceptControllerMethod() throws Throwable {
         // Given
         TestController target = new TestController();
+        Method method = TestController.class.getMethod("testMethod", String.class);
         when(joinPoint.getTarget()).thenReturn(target);
         when(joinPoint.getSignature()).thenReturn(signature);
         when(signature.getName()).thenReturn("testMethod");
+        when(signature.getParameterNames()).thenReturn(new String[]{"param"});
+        when(signature.getMethod()).thenReturn(method);
         when(joinPoint.getArgs()).thenReturn(new Object[]{"test"});
         when(joinPoint.proceed()).thenReturn("success");
 
@@ -75,9 +83,6 @@ class LoggerAopTest {
         // Given
         TestService target = new TestService();
         when(joinPoint.getTarget()).thenReturn(target);
-        when(joinPoint.getSignature()).thenReturn(signature);
-        when(signature.getName()).thenReturn("processData");
-        when(joinPoint.getArgs()).thenReturn(new Object[]{"data"});
         when(joinPoint.proceed()).thenReturn("processed");
 
         // When
@@ -111,13 +116,10 @@ class LoggerAopTest {
     void shouldLogAppExceptionCorrectly() throws NoSuchMethodException {
         // Given
         TestService target = new TestService();
-        Method method = TestService.class.getMethod("throwException");
         AppMsg appMsg = new AppMsg(MessageType.Error, "E001", "Test error");
         AppException appException = new AppException(appMsg);
         
         when(joinPoint.getTarget()).thenReturn(target);
-        when(joinPoint.getSignature()).thenReturn(signature);
-        when(signature.getMethod()).thenReturn(method);
 
         // When
         loggerAop.logAppException(joinPoint, appException);
@@ -132,9 +134,7 @@ class LoggerAopTest {
         // Given
         properties.getAop().setEnabled(false);
         loggerAop = new LoggerAop(properties);
-        
-        TestController target = new TestController();
-        when(joinPoint.getTarget()).thenReturn(target);
+
         when(joinPoint.proceed()).thenReturn("success");
 
         // When
@@ -148,21 +148,19 @@ class LoggerAopTest {
 
     @Test
     void shouldSkipExceptionLoggingWhenDisabled() {
-        // Given
-        properties.getExceptionLogging().setLogInAop(false);
-        loggerAop = new LoggerAop(properties);
-        
-        TestService target = new TestService();
-        AppMsg appMsg = new AppMsg(MessageType.Error, "E001", "Test error");
-        AppException appException = new AppException(appMsg);
-        
-        when(joinPoint.getTarget()).thenReturn(target);
+        try (MockedStatic<AppLogger> mockedAppLogger= Mockito.mockStatic(AppLogger.class)) {
+            // Given
+            properties.getExceptionLogging().setLogInAop(false);
+            loggerAop = new LoggerAop(properties);
+            AppMsg appMsg = new AppMsg(MessageType.Error, "E001", "Test error");
+            AppException appException = new AppException(appMsg);
 
-        // When
-        loggerAop.logAppException(joinPoint, appException);
+            // When
+            loggerAop.logAppException(joinPoint, appException);
 
-        // Then - ログ処理がスキップされることを確認
-        // 実際の実装ではログ出力されないことを検証
+            // Then - ログ処理がスキップされることを確認
+            mockedAppLogger.verify(() -> AppLogger.getLogger((Class<?>) any()), never());
+        }
     }
 
     /**
@@ -198,7 +196,7 @@ class LoggerAopTest {
      */
     @Controller
     static class TestController {
-        public String testMethod(String param) {
+        public String testMethod(@PathVariable String param) {
             return "success";
         }
         
