@@ -62,7 +62,7 @@ public class LoggerAop {
      * アプリケーションの@ExceptionHandlerで処理されます。
      */
     @AfterThrowing(
-            pointcut = "execution(* com.example..*.*(..))",
+            pointcut = "execution(* *..*.*(..))",
             throwing = "ex"
     )
     public void logAppException(JoinPoint joinPoint, Exception ex) {
