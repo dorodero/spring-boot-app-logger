@@ -1,5 +1,7 @@
 # spring-boot-app-logger
 
+> **Note:** This project is for learning purposes only. The package name (`com.example`) and group ID are placeholders and not intended for production use.
+
 A Spring Boot auto-configuration library that provides structured logging with AOP-based method interception, structured exception handling, and i18n message support.
 
 ## Features
@@ -114,7 +116,6 @@ app:
   logger:
     aop:
       enabled: true                                         # Enable/disable AOP logging
-      pointcut: "execution(* *..*Controller.*(..))"        # AspectJ pointcut expression
       log-args: true                                        # Log method arguments
       log-result: false                                     # Log return values
       log-execution-time: true                              # Log method execution time
@@ -144,7 +145,6 @@ app:
     aop:
       log-args: true
       log-result: true
-      pointcut: "execution(* com.myapp..*.*(..))"
 ```
 
 ### Disabling auto-configuration
