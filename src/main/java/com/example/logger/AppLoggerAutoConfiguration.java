@@ -1,8 +1,12 @@
 package com.example.logger;
 
 import com.example.logger.aop.LoggerAop;
+import com.example.logger.aop.LoggingMethodInterceptor;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.service.MessageService;
+import org.springframework.aop.Advisor;
+import org.springframework.aop.aspectj.AspectJExpressionPointcut;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -49,6 +53,14 @@ public class AppLoggerAutoConfiguration {
         @ConditionalOnMissingBean(LoggerAop.class)
         public LoggerAop loggerAop(AppLoggerProperties properties) {
             return new LoggerAop(properties);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "appLoggerAdvisor")
+        public Advisor appLoggerAdvisor(AppLoggerProperties properties) {
+            AspectJExpressionPointcut pointcut = new AspectJExpressionPointcut();
+            pointcut.setExpression(properties.getAop().getPointcut());
+            return new DefaultPointcutAdvisor(pointcut, new LoggingMethodInterceptor(properties));
         }
     }
 

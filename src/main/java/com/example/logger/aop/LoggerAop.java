@@ -6,14 +6,8 @@ import com.example.logger.exception.AppException;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
-import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -36,12 +30,6 @@ public class LoggerAop {
     public LoggerAop(AppLoggerProperties properties) {
         this.properties = properties != null ? properties : createDefaultProperties();
     }
-
-    /**
-     * ポイントカット定義: Controller
-     */
-    @Pointcut("execution(* *..*Controller.*(..))")
-    public void controllerMethods() {}
 
     /**
      * ポイントカット定義: Service
@@ -86,40 +74,6 @@ public class LoggerAop {
     }
 
     /**
-     * メソッド実行全体をラップ（実行時間計測）
-     */
-    @Around("controllerMethods()")
-    public Object aroundController(ProceedingJoinPoint joinPoint) throws Throwable {
-        if (!properties.getAop().isEnabled()) {
-            return joinPoint.proceed();
-        }
-
-        AppLogger logger = getLogger(joinPoint);
-        String methodInfo = getMethodInfo(joinPoint);
-        long startTime = System.currentTimeMillis();
-
-        // START ログ
-        logMethodStart(logger, joinPoint, methodInfo);
-
-        try {
-            // メソッド実行
-            Object result = joinPoint.proceed();
-
-            // END ログ（正常終了）
-            long executionTime = System.currentTimeMillis() - startTime;
-            logMethodEnd(logger, joinPoint, methodInfo, result, executionTime);
-
-            return result;
-
-        } catch (Throwable throwable) {
-            // ERROR ログ（異常終了）
-            long executionTime = System.currentTimeMillis() - startTime;
-            logMethodError(logger, joinPoint, methodInfo, throwable, executionTime);
-            throw throwable;
-        }
-    }
-
-    /**
      * Service層のログ（デバッグレベル）
      */
     @Around("serviceMethods()")
@@ -151,165 +105,6 @@ public class LoggerAop {
                     methodInfo, executionTime, throwable.getMessage());
             throw throwable;
         }
-    }
-
-    /**
-     * メソッド開始ログ
-     */
-    private void logMethodStart(AppLogger logger, JoinPoint joinPoint, String methodInfo) {
-        if (!properties.getAop().isLogArgs()) {
-            logger.info("START: {}", methodInfo);
-            return;
-        }
-
-        // 引数情報を取得
-        Object[] args = joinPoint.getArgs();
-        if (args == null || args.length == 0) {
-            logger.info("START: {}", methodInfo);
-            return;
-        }
-
-        // Spring MVCアノテーションを考慮した引数ログ
-        String argsInfo = formatArguments(joinPoint, args);
-        logger.info("START: {} | {}", methodInfo, argsInfo);
-    }
-
-    /**
-     * メソッド終了ログ（正常）
-     */
-    private void logMethodEnd(AppLogger logger, JoinPoint joinPoint,
-                              String methodInfo, Object result, long executionTime) {
-
-        StringBuilder logMessage = new StringBuilder();
-        logMessage.append("END: ").append(methodInfo);
-
-        if (properties.getAop().isLogExecutionTime()) {
-            logMessage.append(" | ").append(executionTime).append("ms");
-        }
-
-        if (properties.getAop().isLogResult() && result != null) {
-            logMessage.append(" | result: ").append(formatResult(result));
-        }
-
-        logger.info(logMessage.toString());
-    }
-
-    /**
-     * メソッド終了ログ（異常）
-     */
-    private void logMethodError(AppLogger logger, JoinPoint joinPoint,
-                                String methodInfo, Throwable throwable, long executionTime) {
-
-        StringBuilder logMessage = new StringBuilder();
-        logMessage.append("ERROR: ").append(methodInfo);
-
-        if (properties.getAop().isLogExecutionTime()) {
-            logMessage.append(" | ").append(executionTime).append("ms");
-        }
-
-        logMessage.append(" | exception: ").append(throwable.getClass().getSimpleName());
-
-        logger.error(throwable, logMessage.toString());
-    }
-
-    /**
-     * 引数をフォーマット（Spring MVCアノテーション考慮）
-     */
-    private String formatArguments(JoinPoint joinPoint, Object[] args) {
-        if (!(joinPoint.getSignature() instanceof MethodSignature)) {
-            return formatSimpleArgs(args);
-        }
-
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        Method method = signature.getMethod();
-        String[] parameterNames = signature.getParameterNames();
-        Annotation[][] parameterAnnotations = method.getParameterAnnotations();
-
-        StringBuilder sb = new StringBuilder();
-
-        for (int i = 0; i < args.length; i++) {
-            if (i > 0) {
-                sb.append(", ");
-            }
-
-            // アノテーションから情報取得
-            String paramType = getParameterType(parameterAnnotations[i]);
-            String paramName = parameterNames != null && parameterNames.length > i
-                    ? parameterNames[i] : "arg" + i;
-
-            if (paramType != null) {
-                sb.append(paramType).append("(").append(paramName).append(")");
-            } else {
-                sb.append(paramName);
-            }
-
-            sb.append("=").append(formatValue(args[i]));
-        }
-
-        return sb.toString();
-    }
-
-    /**
-     * パラメータタイプを取得（@RequestBody, @PathVariable等）
-     */
-    private String getParameterType(Annotation[] annotations) {
-        for (Annotation annotation : annotations) {
-            if (annotation instanceof RequestBody) {
-                return "RequestBody";
-            } else if (annotation instanceof PathVariable) {
-                return "PathVariable";
-            } else if (annotation instanceof RequestParam) {
-                return "RequestParam";
-            }
-        }
-        return null;
-    }
-
-    /**
-     * シンプルな引数フォーマット
-     */
-    private String formatSimpleArgs(Object[] args) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < args.length; i++) {
-            if (i > 0) sb.append(", ");
-            sb.append(formatValue(args[i]));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 値をフォーマット（機密情報マスク対応）
-     */
-    private String formatValue(Object value) {
-        if (value == null) {
-            return "null";
-        }
-
-        String valueStr = value.toString();
-
-        // 機密情報のマスク（例: パスワード）
-        if (valueStr.length() > 100) {
-            return valueStr.substring(0, 100) + "...(truncated)";
-        }
-
-        return valueStr;
-    }
-
-    /**
-     * 結果をフォーマット
-     */
-    private String formatResult(Object result) {
-        if (result == null) {
-            return "null";
-        }
-
-        String resultStr = result.toString();
-
-        if (resultStr.length() > 200) {
-            return result.getClass().getSimpleName() + "(size=" + resultStr.length() + ")";
-        }
-
-        return resultStr;
     }
 
     /**
