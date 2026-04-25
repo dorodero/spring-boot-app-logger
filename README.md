@@ -44,12 +44,14 @@ No configuration is required. Once the dependency is added, the library auto-con
 
 ### Basic logging
 
+Use SLF4J (or Lombok's `@Slf4j`) directly in your application code:
+
 ```java
+@Slf4j
 public class UserService {
-    private static final AppLogger logger = AppLogger.getLogger(UserService.class);
 
     public User findUser(Long userId) {
-        logger.info("Finding user: {}", userId);
+        log.info("Finding user: {}", userId);
         // ...
     }
 }

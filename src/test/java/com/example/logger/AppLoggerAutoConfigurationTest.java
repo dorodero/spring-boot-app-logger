@@ -1,9 +1,10 @@
 package com.example.logger;
 
-import com.example.logger.aop.LoggerAop;
+import com.example.logger.aop.AppExceptionLoggingAspect;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.service.MessageService;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.Advisor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.MessageSource;
@@ -13,11 +14,6 @@ import org.springframework.context.support.ResourceBundleMessageSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * AppLoggerAutoConfigurationのテスト
- * 
- * ApplicationContextRunnerを使用して軽量で高速なテストを実行
- */
 class AppLoggerAutoConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -26,9 +22,8 @@ class AppLoggerAutoConfigurationTest {
     @Test
     void shouldAutoConfigureAppLoggerProperties() {
         contextRunner.run(context -> {
-            // プロパティ値が未定義の場合、デフォルト値で構成される。
             assertThat(context).hasSingleBean(AppLoggerProperties.class);
-            
+
             AppLoggerProperties properties = context.getBean(AppLoggerProperties.class);
             assertThat(properties.getAop().isEnabled()).isTrue();
             assertThat(properties.getMessage().isEnabled()).isTrue();
@@ -36,10 +31,10 @@ class AppLoggerAutoConfigurationTest {
     }
 
     @Test
-    void shouldAutoConfigureLoggerAopWhenAspectJIsPresent() {
+    void shouldAutoConfigureAopBeansWhenAspectJIsPresent() {
         contextRunner.run(context -> {
-            // AspectJがクラスパスにある場合、LoggerAopが自動設定される
-            assertThat(context).hasSingleBean(LoggerAop.class);
+            assertThat(context).hasSingleBean(AppExceptionLoggingAspect.class);
+            assertThat(context).hasBean("appLoggerAdvisor");
         });
     }
 
@@ -48,19 +43,16 @@ class AppLoggerAutoConfigurationTest {
         contextRunner
                 .withUserConfiguration(MessageSourceConfiguration.class)
                 .run(context -> {
-                    // MessageSourceをBean定義されている場合に、
-                    // MessageServiceが自動設定される
                     assertThat(context).hasSingleBean(MessageService.class);
                     assertThat(context).hasSingleBean(MessageSource.class);
                 });
     }
 
     @Test
-    void shouldNotConfigureMessageServiceWhenMessageSourceIsMissing() {
+    void shouldNotConfigureMessageServiceWhenDisabled() {
         contextRunner
                 .withPropertyValues("app.logger.message.enabled=false")
                 .run(context -> {
-                    // app.logger.message.enabled=falseの場合、MessageServiceが構成されない
                     assertThat(context).doesNotHaveBean(MessageService.class);
                 });
     }
@@ -70,8 +62,8 @@ class AppLoggerAutoConfigurationTest {
         contextRunner
                 .withPropertyValues("app.logger.aop.enabled=false")
                 .run(context -> {
-                    // app.logger.aop.enabled=falseの場合、LoggerAopが構成されない
-                    assertThat(context).doesNotHaveBean(LoggerAop.class);
+                    assertThat(context).doesNotHaveBean(AppExceptionLoggingAspect.class);
+                    assertThat(context).doesNotHaveBean(Advisor.class);
                 });
     }
 
@@ -84,7 +76,6 @@ class AppLoggerAutoConfigurationTest {
                         "app.logger.aop.log-execution-time=false"
                 )
                 .run(context -> {
-                    // AppLoggerPropertiesがプロパティ設定値通りに取得できること
                     AppLoggerProperties properties = context.getBean(AppLoggerProperties.class);
                     assertThat(properties.getAop().isLogArgs()).isFalse();
                     assertThat(properties.getAop().isLogResult()).isTrue();
@@ -93,14 +84,12 @@ class AppLoggerAutoConfigurationTest {
     }
 
     @Test
-    void shouldNotOverrideUserDefinedBeans() {
+    void shouldNotOverrideUserDefinedAppExceptionLoggingAspect() {
         contextRunner
-                .withUserConfiguration(CustomLoggerAopConfiguration.class)
+                .withUserConfiguration(CustomAspectConfiguration.class)
                 .run(context -> {
-                    assertThat(context).hasSingleBean(LoggerAop.class);
-                    LoggerAop loggerAop = context.getBean(LoggerAop.class);
-                    // カスタム実装であることを確認（実際の実装では識別方法を追加）
-                    assertThat(loggerAop).isNotNull();
+                    assertThat(context).hasSingleBean(AppExceptionLoggingAspect.class);
+                    assertThat(context.getBean(AppExceptionLoggingAspect.class)).isNotNull();
                 });
     }
 
@@ -115,10 +104,10 @@ class AppLoggerAutoConfigurationTest {
     }
 
     @Configuration
-    static class CustomLoggerAopConfiguration {
+    static class CustomAspectConfiguration {
         @Bean
-        public LoggerAop customLoggerAop() {
-            return new LoggerAop(); // カスタム実装
+        public AppExceptionLoggingAspect customAspect() {
+            return new AppExceptionLoggingAspect();
         }
     }
 }

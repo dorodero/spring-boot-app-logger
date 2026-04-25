@@ -1,6 +1,6 @@
 package com.example.logger;
 
-import com.example.logger.aop.LoggerAop;
+import com.example.logger.aop.AppExceptionLoggingAspect;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.exception.AppException;
 import com.example.logger.exception.AppMsg;
@@ -20,11 +20,6 @@ import org.springframework.test.context.TestPropertySource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Spring Boot統合テスト
- * 
- * 実際のSpring Bootアプリケーション環境でライブラリをテスト
- */
 @SpringBootTest(
     classes = {
         AppLoggerAutoConfiguration.class,
@@ -42,7 +37,7 @@ class AppLoggerIntegrationTest {
     private AppLoggerProperties properties;
 
     @Autowired
-    private LoggerAop loggerAop;
+    private AppExceptionLoggingAspect appExceptionLoggingAspect;
 
     @Autowired
     private MessageService messageService;
@@ -56,7 +51,7 @@ class AppLoggerIntegrationTest {
     @Test
     void shouldAutoConfigureAllBeans() {
         assertThat(properties).isNotNull();
-        assertThat(loggerAop).isNotNull();
+        assertThat(appExceptionLoggingAspect).isNotNull();
         assertThat(messageService).isNotNull();
     }
 
@@ -69,7 +64,6 @@ class AppLoggerIntegrationTest {
 
     @Test
     void shouldInterceptControllerMethods() {
-        // AOPが正常に動作することをテスト
         String result = testController.testMethod("parameter");
         assertThat(result).isEqualTo("success");
     }
@@ -94,9 +88,6 @@ class AppLoggerIntegrationTest {
         assertThat(errorMsg.getCode()).isEqualTo("test.error");
     }
 
-    /**
-     * テスト用の設定とコンポーネント
-     */
     @TestConfiguration
     static class TestApp {
 
@@ -119,23 +110,13 @@ class AppLoggerIntegrationTest {
         }
     }
 
-    /**
-     * テスト用Controller
-     */
     @Controller
     static class TestController {
         public String testMethod(String parameter) {
             return "success";
         }
-
-        public String methodWithException() {
-            throw new RuntimeException("Test exception");
-        }
     }
 
-    /**
-     * テスト用Service
-     */
     @Service
     static class TestService {
         public String processData(String data) {
