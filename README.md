@@ -14,7 +14,7 @@ A Spring Boot auto-configuration library focused on recording the start and end 
 
 ## Requirements
 
-- Java 17+
+- Java 21+
 - Spring Boot 3.x
 
 ## Installation
@@ -79,14 +79,14 @@ Define messages in `messages.properties`:
 user.notfound=User not found: {0}
 ```
 
-Resolve and log them with `MessageService`:
+Resolve them with `MessageService` and throw as `AppException`:
 
 ```java
 @Autowired
 private MessageService messageService;
 
 AppMsg msg = messageService.getError("user.notfound", userId);
-logger.msg(msg);
+throw new AppException(msg);  // AppExceptionLoggingAspect が自動でログ出力
 ```
 
 ## AOP Auto Logging
@@ -97,9 +97,7 @@ When AspectJ is on the classpath, the library automatically intercepts method ca
 
 ```
 [INFO ] START: UserController.getUser | PathVariable(userId)=123
-[DEBUG] START: UserService.findUser
-[DEBUG] END:   UserService.findUser | 15ms
-[INFO ] END:   UserController.getUser | 45ms | result: User(id=123, name=John)
+[INFO ] END:   UserController.getUser | 45ms
 ```
 
 **On exception:**
@@ -118,6 +116,7 @@ app:
   logger:
     aop:
       enabled: true                                         # Enable/disable AOP logging
+      pointcut: "execution(* *..*Controller.*(..))"        # Target methods (AspectJ expression)
       log-args: true                                        # Log method arguments
       log-result: false                                     # Log return values
       log-execution-time: true                              # Log method execution time
@@ -125,6 +124,20 @@ app:
       enabled: true                                         # Enable/disable MessageService
     exception-logging:
       log-in-aop: true                                      # Log AppException in AOP advice
+```
+
+### Configuring the pointcut
+
+The `pointcut` setting controls which methods are logged. It accepts any [AspectJ expression](https://www.eclipse.org/aspectj/doc/released/progguide/language-joinPoints.html).
+
+The default targets any class named `*Controller`. For production use, specify your application's package explicitly to avoid matching unintended classes:
+
+```yaml
+# Recommended: scope to your own Controller package
+app:
+  logger:
+    aop:
+      pointcut: "execution(* com.myapp.controller.*.*(..))"
 ```
 
 ### Recommended profiles
