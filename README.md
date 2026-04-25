@@ -2,15 +2,15 @@
 
 > **Note:** This project is for learning purposes only. The package name (`com.example`) and group ID are placeholders and not intended for production use.
 
-A Spring Boot auto-configuration library that provides structured logging with AOP-based method interception, structured exception handling, and i18n message support.
+A Spring Boot auto-configuration library focused on recording the start and end of application endpoints. Provides AOP-based method logging, structured exception handling with `AppException`, and i18n message support.
 
 ## Features
 
-- **AOP-based auto logging** — Automatically logs Controller/Service/Repository method calls without modifying your code
-- **Structured exceptions** — `AppException` carries an error code + message (`AppMsg`) for consistent error logging
+- **Endpoint logging** — Automatically logs START/END/ERROR of configured methods (default: Controller) without touching your code
+- **Structured exceptions** — `AppException` carries an error code + message (`AppMsg`); automatically logged by `AppExceptionLoggingAspect`
 - **i18n message support** — Resolves log messages from Spring's `MessageSource` for multilingual apps
 - **Spring Boot Auto Configuration** — Zero-config setup; just add the dependency and go
-- **Highly configurable** — Enable/disable each feature and customize behavior via `application.yml`
+- **Configurable pointcut** — Change the target methods via `application.yml`; SQL/Repository/Service logging is left to the framework or the application itself
 
 ## Requirements
 
@@ -159,13 +159,14 @@ To opt out entirely:
 
 ```
 AppLoggerAutoConfiguration
-├── AppLoggerProperties    — Binds app.logger.* properties
-├── LoggerAop              — AOP interceptor (requires AspectJ)
-│   └── AppLogger          — SLF4J wrapper
-└── MessageService         — i18n message resolver (requires MessageSource)
+├── AppLoggerProperties         — Binds app.logger.* properties
+├── appLoggerAdvisor            — Logs START/END/ERROR of configured pointcut (requires AspectJ)
+│   └── LoggingMethodInterceptor
+├── AppExceptionLoggingAspect   — Catches AppException and logs it (requires AspectJ)
+└── MessageService              — i18n message resolver (requires MessageSource)
 
 AppException → AppMsg (code + message + MessageType)
-     └── LoggerAop catches and logs automatically
+     └── AppExceptionLoggingAspect catches and logs automatically
 ```
 
 ## License

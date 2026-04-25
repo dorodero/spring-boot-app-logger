@@ -86,17 +86,6 @@ public class AppLogger {
         logger.error(message, t);
     }
 
-    /**
-     * エラーログ（パラメータ + 例外）
-     */
-    public void error(Throwable t, String format, Object... args) {
-        // SLF4Jでは最後の引数がThrowableの場合、スタックトレースを出力
-        Object[] argsWithThrowable = new Object[args.length + 1];
-        System.arraycopy(args, 0, argsWithThrowable, 0, args.length);
-        argsWithThrowable[args.length] = t;
-        logger.error(format, argsWithThrowable);
-    }
-
     // ============================================
     // AppMsg用のログメソッド
     // ============================================
