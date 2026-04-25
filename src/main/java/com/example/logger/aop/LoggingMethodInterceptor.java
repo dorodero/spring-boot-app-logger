@@ -1,9 +1,10 @@
 package com.example.logger.aop;
 
-import com.example.logger.AppLogger;
 import com.example.logger.config.AppLoggerProperties;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LoggingMethodInterceptor implements MethodInterceptor {
 
-    private final ConcurrentHashMap<Class<?>, AppLogger> loggerCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Class<?>, Logger> loggerCache = new ConcurrentHashMap<>();
     private final AppLoggerProperties properties;
 
     public LoggingMethodInterceptor(AppLoggerProperties properties) {
@@ -27,7 +28,7 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
             return invocation.proceed();
         }
 
-        AppLogger logger = getLogger(invocation.getThis().getClass());
+        Logger logger = getLogger(invocation.getThis().getClass());
         String methodInfo = getMethodInfo(invocation);
         long startTime = System.currentTimeMillis();
 
@@ -45,7 +46,7 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
         }
     }
 
-    private void logMethodStart(AppLogger logger, MethodInvocation invocation, String methodInfo) {
+    private void logMethodStart(Logger logger, MethodInvocation invocation, String methodInfo) {
         if (!properties.getAop().isLogArgs()) {
             logger.info("START: {}", methodInfo);
             return;
@@ -64,7 +65,7 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
         logger.info("START: {} | {}", methodInfo, argsInfo);
     }
 
-    private void logMethodEnd(AppLogger logger, String methodInfo, Object result, long executionTime) {
+    private void logMethodEnd(Logger logger, String methodInfo, Object result, long executionTime) {
         StringBuilder msg = new StringBuilder("END: ").append(methodInfo);
         if (properties.getAop().isLogExecutionTime()) {
             msg.append(" | ").append(executionTime).append("ms");
@@ -75,7 +76,7 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
         logger.info(msg.toString());
     }
 
-    private void logMethodError(AppLogger logger, String methodInfo, Throwable throwable, long executionTime) {
+    private void logMethodError(Logger logger, String methodInfo, Throwable throwable, long executionTime) {
         StringBuilder msg = new StringBuilder("ERROR: ").append(methodInfo);
         if (properties.getAop().isLogExecutionTime()) {
             msg.append(" | ").append(executionTime).append("ms");
@@ -121,8 +122,8 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
         return s.length() > 200 ? result.getClass().getSimpleName() + "(size=" + s.length() + ")" : s;
     }
 
-    private AppLogger getLogger(Class<?> targetClass) {
-        return loggerCache.computeIfAbsent(targetClass, AppLogger::getLogger);
+    private Logger getLogger(Class<?> targetClass) {
+        return loggerCache.computeIfAbsent(targetClass, LoggerFactory::getLogger);
     }
 
     private String getMethodInfo(MethodInvocation invocation) {

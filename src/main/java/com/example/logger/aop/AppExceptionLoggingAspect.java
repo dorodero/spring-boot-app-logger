@@ -1,11 +1,13 @@
 package com.example.logger.aop;
 
-import com.example.logger.AppLogger;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.exception.AppException;
+import com.example.logger.exception.AppMsg;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AppExceptionLoggingAspect {
 
-    private final ConcurrentHashMap<Class<?>, AppLogger> loggerCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Class<?>, Logger> loggerCache = new ConcurrentHashMap<>();
     private final AppLoggerProperties properties;
 
     public AppExceptionLoggingAspect() {
@@ -36,13 +38,18 @@ public class AppExceptionLoggingAspect {
         if (!(ex instanceof AppException appEx)) {
             return;
         }
-        AppLogger logger = getLogger(joinPoint);
-        logger.msg(appEx.getAppMsg(), appEx);
+        Logger logger = getLogger(joinPoint);
+        AppMsg msg = appEx.getAppMsg();
+        if (msg.isWarning()) {
+            logger.warn("[{}] {}", msg.getCode(), msg.getMessage(), appEx);
+        } else {
+            logger.error("[{}] {}", msg.getCode(), msg.getMessage(), appEx);
+        }
     }
 
-    private AppLogger getLogger(JoinPoint joinPoint) {
+    private Logger getLogger(JoinPoint joinPoint) {
         Class<?> targetClass = joinPoint.getTarget().getClass();
-        return loggerCache.computeIfAbsent(targetClass, AppLogger::getLogger);
+        return loggerCache.computeIfAbsent(targetClass, LoggerFactory::getLogger);
     }
 
     private AppLoggerProperties createDefaultProperties() {
