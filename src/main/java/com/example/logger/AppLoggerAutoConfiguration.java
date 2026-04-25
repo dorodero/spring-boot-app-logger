@@ -1,6 +1,6 @@
 package com.example.logger;
 
-import com.example.logger.aop.LoggerAop;
+import com.example.logger.aop.AppExceptionLoggingAspect;
 import com.example.logger.aop.LoggingMethodInterceptor;
 import com.example.logger.config.AppLoggerProperties;
 import com.example.logger.service.MessageService;
@@ -50,9 +50,9 @@ public class AppLoggerAutoConfiguration {
          * ユーザーが独自のLoggerAopを定義していない場合のみ登録
          */
         @Bean
-        @ConditionalOnMissingBean(LoggerAop.class)
-        public LoggerAop loggerAop(AppLoggerProperties properties) {
-            return new LoggerAop(properties);
+        @ConditionalOnMissingBean(AppExceptionLoggingAspect.class)
+        public AppExceptionLoggingAspect appExceptionLoggingAspect(AppLoggerProperties properties) {
+            return new AppExceptionLoggingAspect(properties);
         }
 
         @Bean
